@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0d0f14">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<title>Panel de casa</title>
+<style>
+:root{
+  --bg:#0d0f14; --card:#151922; --card2:#1b2029; --line:#262c38;
+  --txt:#e9ecf2; --mut:#8c95a8; --dim:#596173;
+  --alta:#ff5d5d; --media:#f5b13d; --info:#5b8def; --ok:#3fb950; --lluvia:#5ab0ff;
+  --r:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--txt);overflow:hidden;
+  font-family:Roboto,"Segoe UI",system-ui,-apple-system,sans-serif;
+  -webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+svg{display:block}
+
+#app{height:100vh;display:grid;grid-template-rows:auto 1fr;gap:12px;padding:14px 16px 20px}
+
+/* ---------- Cabecera: reloj + tiempo ---------- */
+#top{display:grid;grid-template-columns:auto auto 1fr;gap:26px;align-items:center;min-height:118px}
+#hora{font-size:80px;font-weight:300;line-height:.95;letter-spacing:-2px;font-variant-numeric:tabular-nums}
+#fecha{font-size:21px;color:var(--mut);margin-top:8px}
+#ahora{display:flex;align-items:center;gap:14px;padding-left:26px;border-left:1px solid var(--line);min-width:290px}
+#ahora svg{width:76px;height:76px;flex:none}
+#ahora .temp{font-size:54px;font-weight:300;line-height:1}
+#ahora .desc{font-size:15px;color:var(--mut);margin-top:4px;white-space:nowrap}
+#horas{display:flex;justify-content:flex-end;gap:6px;overflow:hidden}
+.hr{width:60px;flex:none;text-align:center;padding:8px 0 6px;border-radius:12px;background:var(--card)}
+.hr .h{font-size:13px;color:var(--mut)}
+.hr svg{width:32px;height:32px;margin:3px auto}
+.hr .t{font-size:17px}
+.hr .p{font-size:12px;color:var(--lluvia);height:15px}
+
+/* ---------- Cuerpo ---------- */
+main{display:grid;grid-template-columns:1fr 340px;gap:12px;min-height:0}
+.card{background:var(--card);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;min-height:0}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;min-height:30px}
+.card-head h2{font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
+aside{display:flex;flex-direction:column;gap:12px;min-height:0}
+
+/* Leyenda (tocar para ocultar/mostrar calendarios) */
+#leyenda{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.chip{display:flex;align-items:center;gap:6px;font-size:13px;padding:5px 10px;border-radius:20px;background:var(--card2)}
+.chip i{width:9px;height:9px;border-radius:50%;background:var(--c)}
+.chip.off{opacity:.35;text-decoration:line-through}
+
+/* Calendario */
+#dias{display:grid;grid-template-columns:repeat(var(--n,7),minmax(0,1fr));gap:8px;flex:1;min-height:0}
+.dia{background:var(--card2);border-radius:12px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.dia.hoy{box-shadow:inset 0 0 0 2px #5b8def66}
+.dia.finde .dia-nombre{color:#b7c3ff}
+.dia.festivo .dia-head{background:#f0883e1c}
+.dia-head{padding:8px 9px 7px;border-bottom:1px solid var(--line)}
+.dia-nombre{font-size:15px;font-weight:600;white-space:nowrap}
+.dia-nombre span{color:var(--mut);font-weight:400}
+.dia-tiempo{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--mut);margin-top:3px;height:22px;white-space:nowrap}
+.dia-tiempo svg{width:22px;height:22px;flex:none}
+.dia-tiempo b{color:var(--txt);font-weight:500}
+.dia-tiempo .ll{color:var(--lluvia)}
+.fest{font-size:12px;color:#f0a06a;margin-top:4px;line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.dia-ev{flex:1;overflow-y:auto;padding:6px;display:flex;flex-direction:column;gap:5px;scrollbar-width:none}
+.dia-ev::-webkit-scrollbar{display:none}
+.ev{border-left:4px solid var(--c);background:var(--cb);border-radius:7px;padding:5px 7px;font-size:14px;line-height:1.25;word-break:break-word}
+.ev .h{display:block;font-size:12px;color:var(--mut);font-variant-numeric:tabular-nums}
+.ev.td{font-weight:500}
+.ev.pasado{opacity:.38}
+.ev.encurso{box-shadow:inset 0 0 0 1.5px var(--c)}
+.vacio{color:var(--dim);font-size:13px;text-align:center;padding:14px 4px}
+
+/* Avisos */
+#avisosCard{flex:0 1 auto;max-height:60%}
+#avisos{display:flex;flex-direction:column;gap:7px;overflow-y:auto;scrollbar-width:none}
+#avisos::-webkit-scrollbar{display:none}
+.aviso{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border-radius:10px;background:var(--card2);border-left:4px solid var(--info)}
+.aviso.alta{border-color:var(--alta);background:#ff5d5d17}
+.aviso.media{border-color:var(--media);background:#f5b13d12}
+.aviso.ok{border-color:var(--ok)}
+.aviso .i{font-size:21px;line-height:1.1;width:24px;text-align:center;flex:none}
+.aviso .tx{font-size:15px;font-weight:500;line-height:1.3}
+.aviso .sub{font-size:12.5px;color:var(--mut);margin-top:2px;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+
+/* Recordatorios */
+#tareasCard{flex:1 1 auto}
+#btnNueva{width:38px;height:38px;border-radius:50%;background:var(--info);color:#fff;font-size:26px;line-height:36px;font-weight:300}
+#tareas{overflow-y:auto;flex:1;min-height:0;scrollbar-width:none}
+#tareas::-webkit-scrollbar{display:none}
+.tarea{display:flex;align-items:center;gap:12px;padding:9px 4px;border-bottom:1px solid var(--line)}
+.tarea:last-child{border-bottom:0}
+.check{width:30px;height:30px;border-radius:50%;border:2px solid var(--dim);flex:none;position:relative}
+.check:active,.check.hecho{background:var(--ok);border-color:var(--ok)}
+.tarea .tt{font-size:15.5px;line-height:1.25}
+.tarea .vence{font-size:12px;color:var(--mut);margin-top:2px}
+.tarea .vence.vencida{color:var(--alta)}
+.tarea .vence.hoy{color:var(--media)}
+
+/* Estado, modal y toast */
+#estado{position:fixed;left:16px;right:16px;bottom:3px;font-size:11px;color:var(--dim);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#estado.warn{color:var(--media)}
+#modal{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;z-index:10}
+#modal[hidden]{display:none}
+.mbox{background:var(--card);border-radius:18px;padding:22px;width:560px;max-width:92vw;max-height:86vh;overflow:auto;-webkit-user-select:text;user-select:text}
+.mbox h3{font-size:22px;font-weight:500;margin-bottom:10px;line-height:1.3}
+.mbox .meta{color:var(--mut);font-size:15px;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.mbox .meta i{width:10px;height:10px;border-radius:50%;background:var(--c);display:inline-block}
+.mbox .txt{white-space:pre-wrap;font-size:15px;line-height:1.45;margin-top:12px;color:#cdd3de}
+.mbox input[type=text]{width:100%;font:inherit;font-size:19px;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--txt);outline:none}
+.seg{display:flex;gap:8px;margin:14px 0 4px;flex-wrap:wrap;align-items:center}
+.seg button{padding:9px 14px;border-radius:20px;background:var(--card2);font-size:15px}
+.seg button.on{background:var(--info);color:#fff}
+.seg input[type=date]{font:inherit;font-size:15px;padding:7px 10px;border-radius:20px;border:1px solid var(--line);background:var(--card2);color:var(--txt)}
+.acc{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+.acc button{padding:11px 20px;border-radius:10px;font-size:16px;background:var(--card2)}
+.acc .pri{background:var(--info);color:#fff}
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#2a303c;color:var(--txt);padding:12px 16px;border-radius:12px;font-size:15px;display:flex;gap:16px;align-items:center;box-shadow:0 8px 30px #0008;z-index:20}
+#toast[hidden]{display:none}
+/* Modo noche */
+#noche{position:fixed;inset:0;background:#000;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#3b414d;cursor:pointer}
+#noche[hidden]{display:none}
+#nocheHora{font-size:150px;font-weight:200;letter-spacing:-3px;font-variant-numeric:tabular-nums;line-height:1}
+#nocheTxt{font-size:18px;margin-top:18px;color:#2b3039}
+#toast button{color:#8fb3ff;font-weight:600}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="top">
+    <div><div id="hora">--:--</div><div id="fecha"></div></div>
+    <div id="ahora"></div>
+    <div id="horas"></div>
+  </header>
+  <main>
+    <section class="card">
+      <div class="card-head"><h2>Calendario</h2><div id="leyenda"></div></div>
+      <div id="dias"></div>
+    </section>
+    <aside>
+      <section class="card" id="avisosCard">
+        <div class="card-head"><h2>Avisos</h2></div>
+        <div id="avisos"></div>
+      </section>
+      <section class="card" id="tareasCard">
+        <div class="card-head"><h2>Recordatorios</h2><button id="btnNueva" aria-label="Nuevo recordatorio">+</button></div>
+        <div id="tareas"></div>
+      </section>
+    </aside>
+  </main>
+</div>
+<div id="estado"></div>
+<div id="modal" hidden><div class="mbox" id="mbox"></div></div>
+<div id="toast" hidden></div>
+<div id="noche" hidden><div id="nocheHora"></div><div id="nocheTxt">Toca para ver el panel</div></div>
+
+<script>
+/*__PANEL_CFG__*/
+(function () {
+'use strict';
+
+/* =====================================================================
+   Utilidades
+   ===================================================================== */
+var $ = function (s) { return document.querySelector(s); };
+var LS = {
+  get: function (k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+var ymd = function (d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+var hm = function (d) { return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+var inicioDia = function (d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); };
+var sumarDias = function (d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); };
+var desdeYmd = function (s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); };
+var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+var norm = function (s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); };
+var cap1 = function (s) { return s.charAt(0).toUpperCase() + s.slice(1); };
+var fmtFecha = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+var fmtDiaCorto = new Intl.DateTimeFormat('es-ES', { weekday: 'short' });
+var fmtDiaLargo = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short' });
+var conAlfa = function (hex, a) { return /^#[0-9a-f]{6}$/i.test(hex) ? hex + a : hex; };
+
+/* =====================================================================
+   Iconos del tiempo (códigos WMO de Open-Meteo)
+   ===================================================================== */
+var G_SOL = '<g stroke="#f6c344" stroke-width="1.8" stroke-linecap="round"><path d="M12 2.6v2.1M12 19.3v2.1M2.6 12h2.1M19.3 12h2.1M5.4 5.4l1.5 1.5M17.1 17.1l1.5 1.5M5.4 18.6l1.5-1.5M17.1 6.9l1.5-1.5"/></g><circle cx="12" cy="12" r="4.3" fill="#f6c344"/>';
+var G_LUNA = '<path d="M15 3.4a8.6 8.6 0 1 0 5.6 14.2A7 7 0 0 1 15 3.4z" fill="#c9d1e0"/>';
+var G_NUBE = function (col) { return '<path d="M7.2 19h9.9a4.1 4.1 0 0 0 .5-8.2 5.6 5.6 0 0 0-10.7 1.3A3.5 3.5 0 0 0 7.2 19z" fill="' + (col || '#cfd6e4') + '"/>'; };
+var NUBE_ARRIBA = function (col) { return '<g transform="translate(0,-3.2)">' + G_NUBE(col) + '</g>'; };
+var FIG = {
+  sol: G_SOL,
+  luna: G_LUNA,
+  solnube: '<g transform="translate(-2.2,-2.2) scale(.72)">' + G_SOL + '</g><g transform="translate(1.6,1.8) scale(.94)">' + G_NUBE() + '</g>',
+  lunanube: '<g transform="translate(-1.5,-1.6) scale(.68)">' + G_LUNA + '</g><g transform="translate(1.6,1.8) scale(.94)">' + G_NUBE() + '</g>',
+  nube: '<g transform="translate(8,-1.2) scale(.62)">' + G_NUBE('#8e97a8') + '</g>' + G_NUBE(),
+  niebla: NUBE_ARRIBA('#aab3c3') + '<path d="M4 18.8h14M7 22h13" stroke="#9aa4b8" stroke-width="1.8" stroke-linecap="round"/>',
+  llovizna: NUBE_ARRIBA() + '<path d="M9.5 18.6l-.8 2.2M14.5 18.6l-.8 2.2" stroke="#5ab0ff" stroke-width="1.8" stroke-linecap="round"/>',
+  lluvia: NUBE_ARRIBA('#aeb7c7') + '<path d="M8.4 18.4l-1.3 3.2M12.4 18.4l-1.3 3.2M16.4 18.4l-1.3 3.2" stroke="#5ab0ff" stroke-width="1.9" stroke-linecap="round"/>',
+  nieve: NUBE_ARRIBA() + '<g fill="#fff"><circle cx="8.2" cy="19.4" r="1.15"/><circle cx="12.2" cy="21.4" r="1.15"/><circle cx="16.2" cy="19.4" r="1.15"/></g>',
+  tormenta: NUBE_ARRIBA('#98a1b3') + '<path d="M13 14.6l-3.6 4.9h3l-1.2 3.9 4.6-5.6h-3.1l1.8-3.2z" fill="#f6c344"/>'
+};
+function claveIcono(codigo, esDia) {
+  var c = Number(codigo), dia = !(esDia === 0 || esDia === false);
+  if (c <= 1) return dia ? 'sol' : 'luna';
+  if (c === 2) return dia ? 'solnube' : 'lunanube';
+  if (c === 3) return 'nube';
+  if (c === 45 || c === 48) return 'niebla';
+  if ((c >= 71 && c <= 77) || c === 85 || c === 86) return 'nieve';
+  if (c >= 95) return 'tormenta';
+  if (c >= 51 && c <= 57) return 'llovizna';
+  return 'lluvia';
+}
+function icono(codigo, esDia) { return '<svg viewBox="0 0 24 24" aria-hidden="true">' + FIG[claveIcono(codigo, esDia)] + '</svg>'; }
+var DESC = { 0: 'Despejado', 1: 'Casi despejado', 2: 'Intervalos nubosos', 3: 'Cubierto', 45: 'Niebla', 48: 'Niebla',
+  51: 'Llovizna débil', 53: 'Llovizna', 55: 'Llovizna intensa', 56: 'Llovizna helada', 57: 'Llovizna helada',
+  61: 'Lluvia débil', 63: 'Lluvia', 65: 'Lluvia fuerte', 66: 'Lluvia helada', 67: 'Lluvia helada',
+  71: 'Nieve débil', 73: 'Nieve', 75: 'Nieve fuerte', 77: 'Granizo fino', 80: 'Chubascos débiles', 81: 'Chubascos',
+  82: 'Chubascos fuertes', 85: 'Chubascos de nieve', 86: 'Chubascos de nieve', 95: 'Tormenta', 96: 'Tormenta con granizo', 99: 'Tormenta con granizo' };
+
+/* =====================================================================
+   Conexión con la API (Apps Script)
+   URL del panel:  …/index.html#api=URL_DE_LA_APP_WEB&k=TOKEN   (se recuerda)
+                   …/index.html#demo                            (datos de ejemplo)
+   ===================================================================== */
+function leerConexion() {
+  if (window.PANEL_CFG && window.PANEL_CFG.api) return window.PANEL_CFG;
+  var h = new URLSearchParams(location.hash.replace(/^#/, ''));
+  if (h.has('demo')) return { demo: true };
+  if (h.get('api') && h.get('k')) {
+    var c = { api: h.get('api'), k: h.get('k') };
+    LS.set('panel_conexion', c);
+    return c;
+  }
+  return LS.get('panel_conexion', null) || { demo: true };
+}
+var CONEXION = leerConexion();
+
+function api(accion, extra) {
+  if (CONEXION.demo) return Promise.resolve(demoApi(accion, extra || {}));
+  var peticion;
+  if (accion === 'data') {
+    peticion = fetch(CONEXION.api + '?action=data&k=' + encodeURIComponent(CONEXION.k) + '&_=' + Date.now(), { cache: 'no-store' });
+  } else {
+    var cuerpo = Object.assign({ action: accion, k: CONEXION.k }, extra || {});
+    peticion = fetch(CONEXION.api, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(cuerpo) });
+  }
+  return peticion.then(function (r) { return r.text(); }).then(function (txt) {
+    var j;
+    try { j = JSON.parse(txt); } catch (e) { throw new Error('La API no devolvió datos (¿implementada con acceso "Cualquier usuario"?)'); }
+    if (!j.ok) throw new Error(j.error || 'Error desconocido');
+    return j;
+  });
+}
+// Las acciones sobre recordatorios se encadenan para que "Deshacer" no adelante a "Completar".
+var cola = Promise.resolve();
+function enCola(accion, extra) {
+  var p = cola.then(function () { return api(accion, extra); });
+  cola = p.catch(function () {});
+  return p;
+}
+
+/* =====================================================================
+   Estado
+   ===================================================================== */
+var E = {
+  datos: CONEXION.demo ? null : LS.get('panel_cache', null),
+  ultimaOK: CONEXION.demo ? 0 : LS.get('panel_ultima', 0),
+  error: null,
+  cargando: false,
+  ocultos: LS.get('panel_ocultos', []),
+  pendientes: {},   // recordatorios completados a la espera de confirmación
+  mapaEv: []
+};
+
+function cargar() {
+  if (E.cargando) return;
+  E.cargando = true;
+  api('data').then(function (d) {
+    E.datos = d; E.ultimaOK = Date.now(); E.error = null;
+    if (!CONEXION.demo) { LS.set('panel_cache', d); LS.set('panel_ultima', E.ultimaOK); }
+  }).catch(function (e) {
+    E.error = (e && e.message) || String(e);
+  }).then(function () {
+    E.cargando = false;
+    pintar(new Date());
+    actualizarPantalla(new Date());
+  });
+}
+
+/* =====================================================================
+   Eventos
+   ===================================================================== */
+function calendarios() {
+  var m = {};
+  ((E.datos && E.datos.config.calendarios) || []).forEach(function (c) { m[c.clave] = c; });
+  return m;
+}
+function eventos() {
+  var cals = calendarios();
+  return ((E.datos && E.datos.eventos) || []).filter(function (e) {
+    return cals[e.cal] && E.ocultos.indexOf(e.cal) < 0;
+  }).map(function (e) {
+    var ini, fin;
+    if (e.todoElDia) { ini = desdeYmd(e.inicio); fin = desdeYmd(e.fin); if (fin <= ini) fin = sumarDias(ini, 1); }
+    else { ini = new Date(e.inicio); fin = new Date(e.fin); }
+    return Object.assign({}, e, { ini: ini, finD: fin, c: cals[e.cal] });
+  });
+}
+function delDia(evs, dia) {
+  var a = dia, b = sumarDias(dia, 1);
+  return evs.filter(function (e) { return e.ini < b && (e.finD > a || e.ini >= a); });
+}
+function esClave(e, palabras) {
+  var t = norm(e.titulo + ' ' + (e.descripcion || ''));
+  return (palabras || []).some(function (p) { return p && t.indexOf(norm(p)) >= 0; });
+}
+
+/* =====================================================================
+   Pintado
+   ===================================================================== */
+function pintar(now) {
+  pintarReloj(now);
+  pintarTiempo(now);
+  pintarLeyenda();
+  pintarCalendario(now);
+  pintarAvisos(now);
+  pintarTareas(now);
+  pintarEstado(now);
+}
+
+function pintarReloj(now) {
+  $('#hora').textContent = hm(now);
+  $('#fecha').textContent = cap1(fmtFecha.format(now));
+}
+
+function pintarTiempo(now) {
+  var t = E.datos && E.datos.tiempo;
+  if (!t || !t.actual) { $('#ahora').innerHTML = '<div class="desc">Sin datos del tiempo</div>'; $('#horas').innerHTML = ''; return; }
+  var a = t.actual;
+  $('#ahora').innerHTML = icono(a.codigo, a.esDia) +
+    '<div><div class="temp">' + Math.round(a.temp) + '°</div>' +
+    '<div class="desc">' + esc(DESC[a.codigo] || '') + ' · Sensación ' + Math.round(a.sensacion) + '°</div>' +
+    '<div class="desc">' + esc(E.datos.config.ubicacion || '') + ' · Viento ' + Math.round(a.viento) + ' km/h</div></div>';
+  var desde = ymd(now) + 'T' + pad(now.getHours()) + ':00';
+  var prox = (t.horas || []).filter(function (h) { return h.t > desde; })
+    .filter(function (h, i) { return i % 2 === 0; }).slice(0, 8);
+  $('#horas').innerHTML = prox.map(function (h) {
+    return '<div class="hr"><div class="h">' + h.t.slice(11, 13) + 'h</div>' + icono(h.codigo, h.esDia) +
+      '<div class="t">' + Math.round(h.temp) + '°</div><div class="p">' + (h.lluvia >= 20 ? h.lluvia + '%' : '') + '</div></div>';
+  }).join('');
+}
+
+function pintarLeyenda() {
+  var cals = (E.datos && E.datos.config.calendarios) || [];
+  $('#leyenda').innerHTML = cals.map(function (c) {
+    return '<button class="chip' + (E.ocultos.indexOf(c.clave) >= 0 ? ' off' : '') + '" data-cal="' + c.clave + '" style="--c:' + esc(c.color) + '"><i></i>' + esc(c.nombre) + '</button>';
+  }).join('');
+}
+
+function guardarScroll(sel) {
+  var m = {};
+  document.querySelectorAll(sel).forEach(function (el, i) { m[i] = el.scrollTop; });
+  return m;
+}
+function restaurarScroll(sel, m) {
+  document.querySelectorAll(sel).forEach(function (el, i) { if (m[i]) el.scrollTop = m[i]; });
+}
+
+function htmlEvento(e, idx, dia, now) {
+  var cls = 'ev';
+  var hora = '';
+  if (e.todoElDia) {
+    cls += ' td';
+  } else {
+    hora = e.ini < dia ? 'continúa' : hm(e.ini);
+    if (e.finD <= now) cls += ' pasado';
+    else if (e.ini <= now) cls += ' encurso';
+  }
+  var titulo = (e.c.tipo === 'cumpleanos' ? '🎂 ' : '') + esc(e.titulo);
+  return '<div class="' + cls + '" data-ev="' + idx + '" style="--c:' + esc(e.c.color) + ';--cb:' + conAlfa(e.c.color, '24') + '">' +
+    (hora ? '<span class="h">' + hora + '</span>' : '') + titulo + '</div>';
+}
+
+function pintarCalendario(now) {
+  var cont = $('#dias');
+  if (!E.datos) { cont.innerHTML = '<div class="vacio">Cargando…</div>'; return; }
+  var scroll = guardarScroll('.dia-ev');
+  var n = E.datos.config.dias || 7;
+  cont.style.setProperty('--n', n);
+  var evs = eventos();
+  var hoy = inicioDia(now);
+  var tDias = {};
+  ((E.datos.tiempo && E.datos.tiempo.dias) || []).forEach(function (t) { tDias[t.fecha] = t; });
+  E.mapaEv = [];
+  var html = '';
+  for (var i = 0; i < n; i++) {
+    var dia = sumarDias(hoy, i);
+    var lista = delDia(evs, dia);
+    var festivos = lista.filter(function (e) { return e.c.tipo === 'festivo'; });
+    var todoDia = lista.filter(function (e) { return e.todoElDia && e.c.tipo !== 'festivo'; })
+      .sort(function (a, b) { return a.c.tipo === 'cumpleanos' ? -1 : b.c.tipo === 'cumpleanos' ? 1 : 0; });
+    var conHora = lista.filter(function (e) { return !e.todoElDia; }).sort(function (a, b) { return a.ini - b.ini; });
+    var nombre = i === 0 ? 'Hoy' : i === 1 ? 'Mañana' : cap1(fmtDiaCorto.format(dia).replace('.', ''));
+    var finde = dia.getDay() === 0 || dia.getDay() === 6;
+    var t = tDias[ymd(dia)];
+
+    html += '<div class="dia' + (i === 0 ? ' hoy' : '') + (festivos.length ? ' festivo' : '') + (finde ? ' finde' : '') + '">' +
+      '<div class="dia-head"><div class="dia-nombre">' + nombre + ' <span>' + dia.getDate() + '</span></div>' +
+      '<div class="dia-tiempo">' + (t ? icono(t.codigo, 1) + '<b>' + Math.round(t.max) + '°</b>' + Math.round(t.min) + '°' +
+        (t.lluvia >= 30 ? ' <span class="ll">' + t.lluvia + '%</span>' : '') : '') + '</div>';
+    festivos.forEach(function (f) { E.mapaEv.push(f); html += '<div class="fest" data-ev="' + (E.mapaEv.length - 1) + '">' + esc(f.titulo) + '</div>'; });
+    html += '</div><div class="dia-ev">';
+    var todos = todoDia.concat(conHora);
+    if (!todos.length) html += '<div class="vacio">—</div>';
+    todos.forEach(function (e) { E.mapaEv.push(e); html += htmlEvento(e, E.mapaEv.length - 1, dia, now); });
+    html += '</div></div>';
+  }
+  cont.innerHTML = html;
+  restaurarScroll('.dia-ev', scroll);
+}
+
+/* ---------- Avisos inteligentes ---------- */
+function calcularAvisos(now) {
+  var d = E.datos;
+  if (!d) return [];
+  var A = d.config.avisos || {};
+  var out = [];
+  var hoy = inicioDia(now), manana = sumarDias(hoy, 1);
+  var hora = now.getHours();
+  var tarde = hora >= (A.horaAvisosManana || 16);
+  var evs = eventos();
+  var minutos = function (ms) { return Math.round(ms / 60000); };
+
+  // 1. Avisos oficiales de AEMET
+  (d.aemet || []).forEach(function (w) {
+    var ini = new Date(w.inicio), fin = new Date(w.fin);
+    var cuando = (ini <= now ? 'Activo hasta ' : (ymd(ini) === ymd(now) ? 'Hoy de ' : cap1(fmtDiaLargo.format(ini)) + ', ') + hm(ini) + ' a ') + hm(fin);
+    out.push({ p: w.nivel === 'rojo' ? 100 : w.nivel === 'naranja' ? 90 : 70, nivel: w.nivel === 'amarillo' ? 'media' : 'alta',
+      i: '⚠️', tx: w.titulo, sub: cuando + (w.descripcion ? ' · ' + w.descripcion : '') });
+  });
+
+  // 2. Eventos que empiezan pronto
+  var yaAvisados = [];
+  evs.forEach(function (e) {
+    if (e.todoElDia) return;
+    var m = minutos(e.ini - now);
+    if (m > 0 && m <= (A.minutosProximoEvento || 60)) {
+      yaAvisados.push(e);
+      out.push({ p: m <= 15 ? 95 : 80, nivel: m <= 15 ? 'alta' : 'media', i: '⏰', tx: 'En ' + m + ' min: ' + e.titulo,
+        sub: hm(e.ini) + (e.lugar ? ' · ' + e.lugar : '') + ' · ' + e.c.nombre });
+    }
+  });
+
+  // 3. Hoy: eventos con palabras clave (por la mañana) y cumpleaños
+  delDia(evs, hoy).forEach(function (e) {
+    if (e.c.tipo === 'cumpleanos') out.push({ p: 75, nivel: 'info', i: '🎂', tx: 'Hoy: ' + e.titulo, sub: e.c.nombre });
+    else if (hora < 13 && e.c.tipo !== 'festivo' && yaAvisados.indexOf(e) < 0 && esClave(e, A.palabrasClave) && (e.todoElDia || e.ini > now))
+      out.push({ p: 72, nivel: 'media', i: '📌', tx: 'Hoy: ' + e.titulo, sub: (e.todoElDia ? 'Todo el día' : hm(e.ini)) + ' · ' + e.c.nombre });
+  });
+
+  // 4. Mañana (a partir de la hora configurada)
+  if (tarde) {
+    delDia(evs, manana).forEach(function (e) {
+      if (e.ini < manana) return; // eventos que ya venían de hoy
+      var clave = esClave(e, A.palabrasClave);
+      if (e.c.tipo === 'festivo') out.push({ p: 60, nivel: 'info', i: '🎉', tx: 'Mañana es festivo', sub: e.titulo });
+      else if (e.c.tipo === 'cumpleanos') out.push({ p: 58, nivel: 'info', i: '🎂', tx: 'Mañana: ' + e.titulo, sub: e.c.nombre });
+      else if (clave || e.c.avisarDiaAntes)
+        out.push({ p: clave ? 65 : 40, nivel: clave ? 'media' : 'info', i: clave ? '🎒' : '📅', tx: 'Mañana: ' + e.titulo,
+          sub: (e.todoElDia ? 'Todo el día' : hm(e.ini)) + ' · ' + e.c.nombre });
+    });
+  }
+
+  // 5. Lluvia en las franjas configuradas (próximas 20 h)
+  var horas = (d.tiempo && d.tiempo.horas) || [];
+  [0, 1].forEach(function (off) {
+    var diaRef = sumarDias(hoy, off), clave = ymd(diaRef);
+    (A.ventanasLluvia || []).forEach(function (v) {
+      var ini = new Date(diaRef.getFullYear(), diaRef.getMonth(), diaRef.getDate(), v.desde);
+      var fin = new Date(diaRef.getFullYear(), diaRef.getMonth(), diaRef.getDate(), v.hasta, 59);
+      if (fin <= now || ini - now > 20 * 3600e3) return;
+      var max = -1;
+      horas.forEach(function (h) {
+        var hh = +h.t.slice(11, 13);
+        if (h.t.slice(0, 10) === clave && hh >= v.desde && hh <= v.hasta && h.lluvia > max) max = h.lluvia;
+      });
+      if (max >= (A.lluviaUmbral || 50))
+        out.push({ p: 68, nivel: 'media', i: '☔', tx: 'Lluvia ' + (off ? 'mañana ' : 'hoy ') + v.nombre + ' (' + max + '%)', sub: 'Coged paraguas' });
+    });
+  });
+
+  // 6. Frío / calor (hoy por la mañana, mañana por la tarde)
+  var tdias = (d.tiempo && d.tiempo.dias) || [];
+  var refFrio = hora < 14 ? ymd(hoy) : tarde ? ymd(manana) : null;
+  var td = tdias.filter(function (x) { return x.fecha === refFrio; })[0];
+  if (td) {
+    var cuando = refFrio === ymd(hoy) ? 'Hoy' : 'Mañana';
+    if (td.min <= A.frio) out.push({ p: 55, nivel: 'info', i: '🧥', tx: cuando + ' mínima de ' + Math.round(td.min) + '°', sub: 'Abrigaos bien' });
+    if (td.max >= A.calor) out.push({ p: 66, nivel: 'media', i: '🥵', tx: cuando + ' máxima de ' + Math.round(td.max) + '°', sub: 'Agua, gorra y evitar el sol del mediodía' });
+  }
+
+  // 7. Recordatorios vencidos o para hoy
+  var tareas = tareasVisibles();
+  var hoyK = ymd(hoy);
+  var vencidas = tareas.filter(function (t) { return t.vence && t.vence < hoyK; });
+  if (vencidas.length) out.push({ p: 62, nivel: 'media', i: '📌', tx: vencidas.length === 1 ? 'Recordatorio vencido: ' + vencidas[0].titulo : vencidas.length + ' recordatorios vencidos', sub: 'Mira la lista de abajo' });
+  tareas.filter(function (t) { return t.vence === hoyK; }).slice(0, 3).forEach(function (t) {
+    out.push({ p: 50, nivel: 'info', i: '📝', tx: 'Hoy: ' + t.titulo, sub: 'Recordatorio' });
+  });
+
+  return out.sort(function (a, b) { return b.p - a.p; });
+}
+
+function pintarAvisos(now) {
+  var av = calcularAvisos(now);
+  if (!E.datos) { $('#avisos').innerHTML = ''; return; }
+  if (!av.length) av = [{ nivel: 'ok', i: '✅', tx: 'Todo en orden', sub: 'Sin avisos por ahora' }];
+  $('#avisos').innerHTML = av.map(function (a) {
+    return '<div class="aviso ' + a.nivel + '"><div class="i">' + a.i + '</div><div><div class="tx">' + esc(a.tx) + '</div>' +
+      (a.sub ? '<div class="sub">' + esc(a.sub) + '</div>' : '') + '</div></div>';
+  }).join('');
+}
+
+/* ---------- Recordatorios ---------- */
+function tareasVisibles() {
+  return ((E.datos && E.datos.tareas) || []).filter(function (t) { return !E.pendientes[t.id]; });
+}
+function textoVence(v, hoyK, mananaK) {
+  if (!v) return null;
+  if (v < hoyK) return { c: 'vencida', t: 'Vencido · ' + fmtDiaLargo.format(desdeYmd(v)) };
+  if (v === hoyK) return { c: 'hoy', t: 'Hoy' };
+  if (v === mananaK) return { c: '', t: 'Mañana' };
+  return { c: '', t: cap1(fmtDiaLargo.format(desdeYmd(v))) };
+}
+function pintarTareas(now) {
+  if (!E.datos) { $('#tareas').innerHTML = ''; return; }
+  var sc = $('#tareas').scrollTop;
+  var hoyK = ymd(now), mananaK = ymd(sumarDias(inicioDia(now), 1));
+  var lista = tareasVisibles();
+  $('#tareas').innerHTML = lista.length ? lista.map(function (t) {
+    var v = textoVence(t.vence, hoyK, mananaK);
+    return '<div class="tarea"><button class="check" data-tarea="' + esc(t.id) + '" aria-label="Completar"></button><div>' +
+      '<div class="tt">' + esc(t.titulo) + '</div>' + (v ? '<div class="vence ' + v.c + '">' + esc(v.t) + '</div>' : '') + '</div></div>';
+  }).join('') : '<div class="vacio">Nada pendiente 🎉<br>Toca + para añadir</div>';
+  $('#tareas').scrollTop = sc;
+}
+
+function completar(id, boton) {
+  if (boton) boton.classList.add('hecho');
+  setTimeout(function () {
+    E.pendientes[id] = true;
+    pintar(new Date());
+  }, 250);
+  var deshecho = false;
+  toast('Recordatorio completado', 'Deshacer', function () {
+    deshecho = true;
+    delete E.pendientes[id];
+    pintar(new Date());
+    enCola('reabrir', { id: id }).catch(function (e) { toast('No se pudo deshacer: ' + e.message); }).then(cargar);
+  });
+  enCola('completar', { id: id }).then(function () {
+    if (deshecho) return;
+    E.datos.tareas = E.datos.tareas.filter(function (t) { return t.id !== id; });
+    delete E.pendientes[id];
+  }).catch(function (e) {
+    delete E.pendientes[id];
+    pintar(new Date());
+    toast('No se pudo completar: ' + e.message);
+  });
+}
+
+/* ---------- Estado de la conexión ---------- */
+function pintarEstado(now) {
+  var el = $('#estado'), s, aviso = false;
+  if (CONEXION.demo) { s = 'MODO DEMO · para datos reales abre el panel con #api=…&k=…'; aviso = true; }
+  else if (E.error) { s = '⚠ ' + E.error + (E.ultimaOK ? ' · mostrando datos de las ' + hm(new Date(E.ultimaOK)) : ''); aviso = true; }
+  else if (E.ultimaOK && now - E.ultimaOK > 30 * 60e3) { s = '⚠ Datos de las ' + hm(new Date(E.ultimaOK)); aviso = true; }
+  else s = 'Actualizado ' + (E.ultimaOK ? hm(new Date(E.ultimaOK)) : '—');
+  var errs = (E.datos && E.datos.errores) || [];
+  if (errs.length) { s += ' · ' + errs.join(' · '); aviso = true; }
+  el.textContent = s;
+  el.className = aviso ? 'warn' : '';
+}
+
+/* =====================================================================
+   Modal y toast
+   ===================================================================== */
+function abrirModal(html) { $('#mbox').innerHTML = html; $('#modal').hidden = false; }
+function cerrarModal() { $('#modal').hidden = true; $('#mbox').innerHTML = ''; }
+
+function detalleEvento(e) {
+  var cuando;
+  if (e.todoElDia) {
+    var ultimo = sumarDias(e.finD, -1);
+    cuando = cap1(fmtDiaLargo.format(e.ini)) + (ymd(ultimo) !== ymd(e.ini) ? ' – ' + fmtDiaLargo.format(ultimo) : '') + ' · Todo el día';
+  } else {
+    cuando = cap1(fmtDiaLargo.format(e.ini)) + ' · ' + hm(e.ini) + '–' + hm(e.finD);
+  }
+  abrirModal('<h3>' + (e.c.tipo === 'cumpleanos' ? '🎂 ' : '') + esc(e.titulo) + '</h3>' +
+    '<div class="meta" style="--c:' + esc(e.c.color) + '"><i></i>' + esc(e.c.nombre) + '</div>' +
+    '<div class="meta">🕒 ' + esc(cuando) + '</div>' +
+    (e.lugar ? '<div class="meta">📍 ' + esc(e.lugar) + '</div>' : '') +
+    (e.descripcion ? '<div class="txt">' + esc(e.descripcion) + '</div>' : '') +
+    '<div class="acc"><button class="pri" data-cerrar>Cerrar</button></div>');
+}
+
+function nuevoRecordatorio() {
+  var hoy = new Date(), manana = sumarDias(inicioDia(hoy), 1);
+  abrirModal('<h3>Nuevo recordatorio</h3>' +
+    '<input type="text" id="nTitulo" maxlength="150" placeholder="¿Qué hay que recordar?" autocomplete="off">' +
+    '<div class="seg" id="nSeg"><button data-f="" class="on">Sin fecha</button><button data-f="' + ymd(hoy) + '">Hoy</button>' +
+    '<button data-f="' + ymd(manana) + '">Mañana</button><input type="date" id="nFecha" min="' + ymd(hoy) + '"></div>' +
+    '<div class="acc"><button data-cerrar>Cancelar</button><button class="pri" id="nGuardar">Guardar</button></div>');
+  var fecha = '';
+  var seg = $('#nSeg');
+  seg.addEventListener('click', function (ev) {
+    var b = ev.target.closest('button'); if (!b) return;
+    fecha = b.getAttribute('data-f');
+    seg.querySelectorAll('button').forEach(function (x) { x.classList.toggle('on', x === b); });
+    $('#nFecha').value = '';
+  });
+  $('#nFecha').addEventListener('change', function () {
+    fecha = this.value;
+    seg.querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
+  });
+  var guardar = function () {
+    var titulo = $('#nTitulo').value.trim();
+    if (!titulo) { $('#nTitulo').focus(); return; }
+    var btn = $('#nGuardar'); btn.disabled = true; btn.textContent = 'Guardando…';
+    enCola('crear', { titulo: titulo, fecha: fecha }).then(function (r) {
+      cerrarModal();
+      if (r.tarea) { E.datos.tareas.push(r.tarea); pintar(new Date()); }
+      cargar();
+    }).catch(function (e) {
+      btn.disabled = false; btn.textContent = 'Guardar';
+      toast('No se pudo guardar: ' + e.message);
+    });
+  };
+  $('#nGuardar').addEventListener('click', guardar);
+  $('#nTitulo').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') guardar(); });
+  setTimeout(function () { $('#nTitulo').focus(); }, 50);
+}
+
+var toastTimer = null;
+function toast(texto, accion, fn) {
+  var t = $('#toast');
+  t.innerHTML = '<span>' + esc(texto) + '</span>' + (accion ? '<button>' + esc(accion) + '</button>' : '');
+  t.hidden = false;
+  if (accion) t.querySelector('button').onclick = function () { t.hidden = true; fn(); };
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { t.hidden = true; }, accion ? 6000 : 4000);
+}
+
+/* =====================================================================
+   Pantalla: mantenerla encendida, modo noche, pantalla completa y
+   recarga diaria. Sustituye a las funciones de pago de las apps de quiosco.
+   ===================================================================== */
+var P = { wake: null, despiertoHasta: 0, arranque: Date.now() };
+var ES_APP = !!(window.matchMedia && (matchMedia('(display-mode: fullscreen)').matches || matchMedia('(display-mode: standalone)').matches));
+
+function cfgPantalla() {
+  var p = (E.datos && E.datos.config && E.datos.config.pantalla) || {};
+  return { desde: p.nocheDesde || '23:00', hasta: p.nocheHasta || '06:45',
+    modo: p.modoNoche == null ? 'oscuro' : p.modoNoche, min: p.minutosDespierta || 3 };
+}
+function aMinutos(s) { var x = String(s).split(':'); return (+x[0]) * 60 + (+(x[1] || 0)); }
+function esNoche(now) {
+  var c = cfgPantalla();
+  if (!c.modo) return false;
+  var m = now.getHours() * 60 + now.getMinutes(), d = aMinutos(c.desde), h = aMinutos(c.hasta);
+  return d <= h ? (m >= d && m < h) : (m >= d || m < h);
+}
+// Screen Wake Lock: mantiene la pantalla encendida mientras el panel está visible (Chrome).
+function pedirWakeLock() {
+  if (!('wakeLock' in navigator) || P.wake || P.pidiendo || document.hidden) return;
+  P.pidiendo = true;
+  navigator.wakeLock.request('screen').then(function (w) {
+    P.wake = w;
+    w.addEventListener('release', function () { P.wake = null; });
+  }).catch(function () {}).then(function () { P.pidiendo = false; });
+}
+function soltarWakeLock() { if (P.wake) { P.wake.release().catch(function () {}); P.wake = null; } }
+
+function actualizarPantalla(now) {
+  var c = cfgPantalla();
+  var dormido = esNoche(now) && now.getTime() > P.despiertoHasta;
+  $('#noche').hidden = !dormido;
+  if (dormido) $('#nocheHora').textContent = hm(now);
+  // En modo 'apagar' se suelta el bloqueo y Android apaga la pantalla al cumplirse su tiempo de espera.
+  if (dormido && c.modo === 'apagar') soltarWakeLock(); else pedirWakeLock();
+  // Recarga diaria a las 04:00: coge cambios del panel y libera memoria.
+  if (now.getHours() === 4 && now.getMinutes() === 0 && Date.now() - P.arranque > 3600e3) location.reload();
+}
+function despertar() {
+  P.despiertoHasta = Date.now() + cfgPantalla().min * 60000;
+  actualizarPantalla(new Date());
+  cargar();
+}
+// Fuera de la app instalada, el primer toque pone el navegador a pantalla completa.
+document.addEventListener('click', function () {
+  if (ES_APP || document.fullscreenElement || !document.documentElement.requestFullscreen) return;
+  try { document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(function () {}); } catch (e) {}
+}, true);
+
+/* =====================================================================
+   Interacción
+   ===================================================================== */
+document.addEventListener('click', function (ev) {
+  var el;
+  if (ev.target.closest('#noche')) { despertar(); return; }
+  if ((el = ev.target.closest('[data-cerrar]'))) { cerrarModal(); return; }
+  if (ev.target.id === 'modal') { cerrarModal(); return; }
+  if ((el = ev.target.closest('[data-ev]'))) { var e = E.mapaEv[+el.getAttribute('data-ev')]; if (e) detalleEvento(e); return; }
+  if ((el = ev.target.closest('[data-tarea]'))) { completar(el.getAttribute('data-tarea'), el); return; }
+  if ((el = ev.target.closest('[data-cal]'))) {
+    var k = el.getAttribute('data-cal'), i = E.ocultos.indexOf(k);
+    if (i >= 0) E.ocultos.splice(i, 1); else E.ocultos.push(k);
+    LS.set('panel_ocultos', E.ocultos);
+    pintar(new Date());
+    return;
+  }
+  if (ev.target.closest('#btnNueva')) { nuevoRecordatorio(); return; }
+  if (ev.target.closest('#estado')) { cargar(); return; }
+});
+
+/* =====================================================================
+   Arranque y bucles
+   ===================================================================== */
+var ultimoMinuto = -1;
+setInterval(function () {
+  var now = new Date();
+  if (now.getMinutes() !== ultimoMinuto) { ultimoMinuto = now.getMinutes(); pintar(now); actualizarPantalla(now); }
+}, 1000);
+setInterval(cargar, 5 * 60 * 1000);
+document.addEventListener('visibilitychange', function () { if (!document.hidden) { cargar(); actualizarPantalla(new Date()); } });
+window.addEventListener('online', cargar);
+
+pintar(new Date());
+actualizarPantalla(new Date());
+cargar();
+
+if ('serviceWorker' in navigator && location.protocol === 'https:' && !window.PANEL_CFG) {
+  navigator.serviceWorker.register('sw.js').catch(function () {});
+}
+
+/* =====================================================================
+   MODO DEMO: datos de ejemplo relativos a hoy (sin conexión)
+   ===================================================================== */
+function demoApi(accion, extra) {
+  if (!window.__demo) window.__demo = crearDemo();
+  var D = window.__demo;
+  if (accion === 'data') return JSON.parse(JSON.stringify(D));
+  if (accion === 'completar') {
+    D.hechas = D.hechas || {};
+    D.tareas = D.tareas.filter(function (t) { if (t.id === extra.id) D.hechas[t.id] = t; return t.id !== extra.id; });
+    return { ok: true };
+  }
+  if (accion === 'reabrir') { if (D.hechas && D.hechas[extra.id]) { D.tareas.push(D.hechas[extra.id]); delete D.hechas[extra.id]; } return { ok: true }; }
+  if (accion === 'crear') { var t = { id: 'n' + Date.now(), titulo: extra.titulo, vence: extra.fecha || null }; D.tareas.push(t); return { ok: true, tarea: t }; }
+  return { ok: false, error: 'acción demo desconocida' };
+}
+function crearDemo() {
+  var hoy = inicioDia(new Date());
+  var f = function (n) { return ymd(sumarDias(hoy, n)); };
+  var at = function (n, h, m) { var d = sumarDias(hoy, n); d.setHours(h, m || 0); return d.toISOString(); };
+  var ahora = new Date();
+  var pronto = new Date(ahora.getTime() + 40 * 60000); pronto.setSeconds(0, 0);
+  var horas = [], base = new Date(ahora); base.setMinutes(0, 0, 0);
+  for (var i = 0; i < 40; i++) {
+    var hh = new Date(base.getTime() + i * 3600e3), h = hh.getHours();
+    var lluvia = (ymd(hh) === f(1) && h >= 7 && h <= 10) ? 70 : (h > 13 && h < 18 ? 20 : 5);
+    horas.push({ t: ymd(hh) + 'T' + pad(h) + ':00', temp: 9 + 6 * Math.sin((h - 9) / 24 * 2 * Math.PI), lluvia: lluvia,
+      codigo: lluvia >= 60 ? 61 : lluvia >= 20 ? 2 : 1, esDia: h >= 8 && h < 18 ? 1 : 0 });
+  }
+  var codigos = [1, 61, 3, 2, 0, 0, 80, 2], maxs = [16, 12, 13, 15, 18, 19, 14, 15], mins = [6, 7, 5, 4, 6, 7, 8, 6], ll = [10, 75, 35, 10, 0, 0, 60, 15];
+  return {
+    ok: true, generado: new Date().toISOString(),
+    config: {
+      ubicacion: 'Madrid', dias: 7,
+      pantalla: { nocheDesde: '23:00', nocheHasta: '06:45', modoNoche: 'oscuro', minutosDespierta: 3 },
+      calendarios: [
+        { clave: 'c0', nombre: 'Familia', color: '#5b8def', tipo: 'normal', avisarDiaAntes: true },
+        { clave: 'c1', nombre: 'Colegio', color: '#3fb950', tipo: 'normal', avisarDiaAntes: true },
+        { clave: 'c2', nombre: 'Festivos', color: '#f0883e', tipo: 'festivo' },
+        { clave: 'c3', nombre: 'Cumpleaños', color: '#d16ba5', tipo: 'cumpleanos' }
+      ],
+      avisos: { lluviaUmbral: 50, ventanasLluvia: [{ nombre: 'a primera hora', desde: 7, hasta: 9 }, { nombre: 'por la tarde', desde: 16, hasta: 19 }],
+        frio: 3, calor: 35, horaAvisosManana: 16, minutosProximoEvento: 60,
+        palabrasClave: ['educacion fisica', 'excursion', 'disfraz', 'reunion', 'pediatra'] }
+    },
+    eventos: [
+      { cal: 'c0', titulo: 'Pediatra (revisión)', lugar: 'Centro de Salud', descripcion: 'Llevar la cartilla de vacunas.', todoElDia: false, inicio: pronto.toISOString(), fin: new Date(pronto.getTime() + 30 * 60000).toISOString() },
+      { cal: 'c0', titulo: 'Compra semanal', todoElDia: false, inicio: at(0, 10), fin: at(0, 11) },
+      { cal: 'c1', titulo: 'Educación física', todoElDia: true, inicio: f(1), fin: f(2) },
+      { cal: 'c1', titulo: 'Reunión de tutoría', lugar: 'Colegio', todoElDia: false, inicio: at(1, 17, 30), fin: at(1, 18, 15) },
+      { cal: 'c0', titulo: 'Inglés', todoElDia: false, inicio: at(1, 18, 30), fin: at(1, 19, 30) },
+      { cal: 'c3', titulo: 'Cumple de la abuela', todoElDia: true, inicio: f(2), fin: f(3) },
+      { cal: 'c0', titulo: 'Natación', todoElDia: false, inicio: at(2, 17, 30), fin: at(2, 18, 30) },
+      { cal: 'c1', titulo: 'Excursión al Museo de Ciencias', descripcion: 'Llevar almuerzo y gorra.', todoElDia: true, inicio: f(3), fin: f(4) },
+      { cal: 'c0', titulo: 'Cena con amigos', todoElDia: false, inicio: at(4, 21), fin: at(4, 23, 30) },
+      { cal: 'c2', titulo: 'Fiesta local', todoElDia: true, inicio: f(5), fin: f(6) },
+      { cal: 'c0', titulo: 'Fin de semana en la sierra', todoElDia: true, inicio: f(5), fin: f(7) },
+      { cal: 'c0', titulo: 'Inglés', todoElDia: false, inicio: at(6, 18, 30), fin: at(6, 19, 30) }
+    ],
+    tareas: [
+      { id: 't1', titulo: 'Pagar comedor del cole', vence: f(-1) },
+      { id: 't2', titulo: 'Firmar autorización excursión', vence: f(0) },
+      { id: 't3', titulo: 'Comprar pañales', vence: f(1) },
+      { id: 't4', titulo: 'Pedir cita ITV', vence: f(4) },
+      { id: 't5', titulo: 'Cambiar filtro de la campana', vence: null }
+    ],
+    tiempo: {
+      actual: { temp: 11.4, sensacion: 9.8, codigo: 2, esDia: ahora.getHours() >= 8 && ahora.getHours() < 18 ? 1 : 0, viento: 12, humedad: 70 },
+      horas: horas,
+      dias: [0, 1, 2, 3, 4, 5, 6, 7].map(function (i) { return { fecha: f(i), codigo: codigos[i], max: maxs[i], min: mins[i], lluvia: ll[i] }; })
+    },
+    aemet: [{ nivel: 'amarillo', titulo: 'Aviso amarillo por lluvias. Metropolitana y Henares', descripcion: 'Precipitación acumulada en una hora: 15 mm.',
+      zona: 'Metropolitana y Henares', inicio: at(1, 6), fin: at(1, 12) }],
+    errores: []
+  };
+}
+})();
+</script>
+</body>
+</html>
