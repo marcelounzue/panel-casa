@@ -26,19 +26,19 @@ svg{display:block}
 #app{height:100vh;display:grid;grid-template-rows:auto 1fr;gap:12px;padding:14px 16px 20px}
 
 /* ---------- Cabecera: reloj + tiempo ---------- */
-#top{display:grid;grid-template-columns:auto auto 1fr;gap:26px;align-items:center;min-height:118px}
-#hora{font-size:80px;font-weight:300;line-height:.95;letter-spacing:-2px;font-variant-numeric:tabular-nums}
-#fecha{font-size:21px;color:var(--mut);margin-top:8px}
-#ahora{display:flex;align-items:center;gap:14px;padding-left:26px;border-left:1px solid var(--line);min-width:290px}
-#ahora svg{width:76px;height:76px;flex:none}
-#ahora .temp{font-size:54px;font-weight:300;line-height:1}
-#ahora .desc{font-size:15px;color:var(--mut);margin-top:4px;white-space:nowrap}
-#horas{display:flex;justify-content:flex-end;gap:6px;overflow:hidden}
-.hr{width:60px;flex:none;text-align:center;padding:8px 0 6px;border-radius:12px;background:var(--card)}
-.hr .h{font-size:13px;color:var(--mut)}
-.hr svg{width:32px;height:32px;margin:3px auto}
-.hr .t{font-size:17px}
-.hr .p{font-size:12px;color:var(--lluvia);height:15px}
+#top{display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:24px;align-items:center;min-height:172px}
+#hora{font-size:118px;font-weight:300;line-height:.9;letter-spacing:-3px;font-variant-numeric:tabular-nums}
+#fecha{font-size:25px;color:var(--mut);margin-top:12px;white-space:nowrap}
+#ahora{display:flex;align-items:center;gap:16px;padding-left:24px;border-left:1px solid var(--line)}
+#ahora svg{width:112px;height:112px;flex:none}
+#ahora .temp{font-size:84px;font-weight:300;line-height:.95}
+#ahora .desc{font-size:18px;color:var(--mut);margin-top:6px;white-space:nowrap}
+#horas{display:flex;gap:8px;overflow:hidden;min-width:0}
+.hr{flex:1 1 0;min-width:0;max-width:110px;text-align:center;padding:12px 0 10px;border-radius:14px;background:var(--card)}
+.hr .h{font-size:17px;color:var(--mut)}
+.hr svg{width:50px;height:50px;margin:6px auto}
+.hr .t{font-size:26px;font-weight:300}
+.hr .p{font-size:15px;color:var(--lluvia);height:19px;margin-top:2px}
 
 /* ---------- Cuerpo ---------- */
 main{display:grid;grid-template-columns:1fr 340px;gap:12px;min-height:0}
@@ -62,8 +62,8 @@ aside{display:flex;flex-direction:column;gap:12px;min-height:0}
 .dia-head{padding:8px 9px 7px;border-bottom:1px solid var(--line)}
 .dia-nombre{font-size:15px;font-weight:600;white-space:nowrap}
 .dia-nombre span{color:var(--mut);font-weight:400}
-.dia-tiempo{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--mut);margin-top:3px;height:22px;white-space:nowrap}
-.dia-tiempo svg{width:22px;height:22px;flex:none}
+.dia-tiempo{display:flex;align-items:center;gap:5px;font-size:14px;color:var(--mut);margin-top:3px;height:26px;white-space:nowrap}
+.dia-tiempo svg{width:26px;height:26px;flex:none}
 .dia-tiempo b{color:var(--txt);font-weight:500}
 .dia-tiempo .ll{color:var(--lluvia)}
 .fest{font-size:12px;color:#f0a06a;margin-top:4px;line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
@@ -345,16 +345,25 @@ function pintarTiempo(now) {
   var a = t.actual;
   $('#ahora').innerHTML = icono(a.codigo, a.esDia) +
     '<div><div class="temp">' + Math.round(a.temp) + '°</div>' +
-    '<div class="desc">' + esc(DESC[a.codigo] || '') + ' · Sensación ' + Math.round(a.sensacion) + '°</div>' +
-    '<div class="desc">' + esc(E.datos.config.ubicacion || '') + ' · Viento ' + Math.round(a.viento) + ' km/h</div></div>';
+    '<div class="desc">' + esc(DESC[a.codigo] || '') + '</div>' +
+    '<div class="desc">Sensación ' + Math.round(a.sensacion) + '° · Viento ' + Math.round(a.viento) + ' km/h</div></div>';
   var desde = ymd(now) + 'T' + pad(now.getHours()) + ':00';
   var prox = (t.horas || []).filter(function (h) { return h.t > desde; })
-    .filter(function (h, i) { return i % 2 === 0; }).slice(0, 8);
+    .filter(function (h, i) { return i % 2 === 0; }).slice(0, cuantasHoras());
   $('#horas').innerHTML = prox.map(function (h) {
     return '<div class="hr"><div class="h">' + h.t.slice(11, 13) + 'h</div>' + icono(h.codigo, h.esDia) +
       '<div class="t">' + Math.round(h.temp) + '°</div><div class="p">' + (h.lluvia >= 20 ? h.lluvia + '%' : '') + '</div></div>';
   }).join('');
 }
+
+// Cuántas horas caben en la cabecera (tarjetas de 78 px como mínimo).
+function cuantasHoras() {
+  var el = $('#horas');
+  var ancho = el ? el.clientWidth : 0;
+  if (!ancho) return 6;
+  return Math.max(3, Math.min(12, Math.floor((ancho + 8) / (78 + 8))));
+}
+window.addEventListener('resize', function () { pintarTiempo(new Date()); });
 
 function pintarLeyenda() {
   var cals = (E.datos && E.datos.config.calendarios) || [];
